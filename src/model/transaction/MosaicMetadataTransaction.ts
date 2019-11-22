@@ -15,6 +15,7 @@
  */
 
 import { Convert } from '../../core/format';
+import { UnresolvedMapping } from '../../core/utils/UnresolvedMapping';
 import { AmountDto } from '../../infrastructure/catbuffer/AmountDto';
 import { EmbeddedMosaicMetadataTransactionBuilder } from '../../infrastructure/catbuffer/EmbeddedMosaicMetadataTransactionBuilder';
 import { KeyDto } from '../../infrastructure/catbuffer/KeyDto';
@@ -25,6 +26,7 @@ import { UnresolvedMosaicIdDto } from '../../infrastructure/catbuffer/Unresolved
 import { PublicAccount } from '../account/PublicAccount';
 import { NetworkType } from '../blockchain/NetworkType';
 import { MosaicId } from '../mosaic/MosaicId';
+import { NamespaceId } from '../namespace/NamespaceId';
 import { UInt64 } from '../UInt64';
 import { Deadline } from './Deadline';
 import { InnerTransaction } from './InnerTransaction';
@@ -42,7 +44,7 @@ export class MosaicMetadataTransaction extends Transaction {
      * @param deadline - transaction deadline
      * @param targetPublicKey - Public key of the target account.
      * @param scopedMetadataKey - Metadata key scoped to source, target and type.
-     * @param targetMosaicId - Target mosaic identifier.
+     * @param targetMosaicId - Target unresolved mosaic identifier.
      * @param valueSizeDelta - Change in value size in bytes.
      * @param value - String value with UTF-8 encoding
      *                Difference between the previous value and new value.
@@ -54,7 +56,7 @@ export class MosaicMetadataTransaction extends Transaction {
     public static create(deadline: Deadline,
                          targetPublicKey: string,
                          scopedMetadataKey: UInt64,
-                         targetMosaicId: MosaicId,
+                         targetMosaicId: MosaicId | NamespaceId,
                          valueSizeDelta: number,
                          value: string,
                          networkType: NetworkType,
@@ -99,7 +101,7 @@ export class MosaicMetadataTransaction extends Transaction {
                 /**
                  * Target mosaic identifier.
                  */
-                public readonly targetMosaicId: MosaicId,
+                public readonly targetMosaicId: MosaicId | NamespaceId,
                 /**
                  * Change in value size in bytes.
                  */
@@ -129,12 +131,12 @@ export class MosaicMetadataTransaction extends Transaction {
         const builder = isEmbedded ? EmbeddedMosaicMetadataTransactionBuilder.loadFromBinary(Convert.hexToUint8(payload)) :
             MosaicMetadataTransactionBuilder.loadFromBinary(Convert.hexToUint8(payload));
         const signerPublicKey = Convert.uint8ToHex(builder.getSignerPublicKey().key);
-        const networkType = Convert.hexToUint8(builder.getVersion().toString(16))[0];
+        const networkType = builder.getNetwork().valueOf();
         const transaction = MosaicMetadataTransaction.create(
             isEmbedded ? Deadline.create() : Deadline.createFromDTO((builder as MosaicMetadataTransactionBuilder).getDeadline().timestamp),
             Convert.uint8ToHex(builder.getTargetPublicKey().key),
             new UInt64(builder.getScopedMetadataKey()),
-            new MosaicId(builder.getTargetMosaicId().unresolvedMosaicId),
+            UnresolvedMapping.toUnresolvedMosaic(new UInt64(builder.getTargetMosaicId().unresolvedMosaicId).toHex()),
             builder.getValueSizeDelta(),
             Convert.uint8ToUtf8(builder.getValue()),
             networkType,
@@ -158,9 +160,10 @@ export class MosaicMetadataTransaction extends Transaction {
         const byteScopedMetadataKey = 8;
         const byteTargetMosaicId = 8;
         const byteValueSizeDelta = 2;
+        const valueSize = 2;
 
         return byteSize + targetPublicKey + byteScopedMetadataKey +
-               byteTargetMosaicId + byteValueSizeDelta + this.value.length;
+               byteTargetMosaicId + byteValueSizeDelta + valueSize + this.value.length;
     }
 
     /**
@@ -175,6 +178,7 @@ export class MosaicMetadataTransaction extends Transaction {
             new SignatureDto(signatureBuffer),
             new KeyDto(signerBuffer),
             this.versionToDTO(),
+            this.networkType.valueOf(),
             TransactionType.MOSAIC_METADATA_TRANSACTION.valueOf(),
             new AmountDto(this.maxFee.toDTO()),
             new TimestampDto(this.deadline.toDTO()),
@@ -195,6 +199,7 @@ export class MosaicMetadataTransaction extends Transaction {
         const transactionBuilder = new EmbeddedMosaicMetadataTransactionBuilder(
             new KeyDto(Convert.hexToUint8(this.signer!.publicKey)),
             this.versionToDTO(),
+            this.networkType.valueOf(),
             TransactionType.MOSAIC_METADATA_TRANSACTION.valueOf(),
             new KeyDto(Convert.hexToUint8(this.targetPublicKey)),
             this.scopedMetadataKey.toDTO(),

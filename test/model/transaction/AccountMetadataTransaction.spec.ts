@@ -72,7 +72,7 @@ describe('AccountMetadataTransaction', () => {
         const signedTransaction = accountMetadataTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
+            256,
             signedTransaction.payload.length,
         )).to.be.equal('C2F93346E27CE6AD1A9F8F5E3066F8326593A406BDF357ACB041E2F9AB402EFEE80300000000000001000A0000000000000000000000');
     });
@@ -91,7 +91,7 @@ describe('AccountMetadataTransaction', () => {
     });
 
     describe('size', () => {
-        it('should return 153 for AccountMetadataTransaction byte size', () => {
+        it('should return 182 for AccountMetadataTransaction byte size', () => {
             const accountMetadataTransaction = AccountMetadataTransaction.create(
                 Deadline.create(),
                 account.publicKey,
@@ -100,7 +100,9 @@ describe('AccountMetadataTransaction', () => {
                 Convert.uint8ToUtf8(new Uint8Array(10)),
                 NetworkType.MIJIN_TEST,
             );
-            expect(accountMetadataTransaction.size).to.be.equal(172);
+
+            expect(Convert.hexToUint8(accountMetadataTransaction.serialize()).length).to.be.equal(accountMetadataTransaction.size);
+            expect(accountMetadataTransaction.size).to.be.equal(182);
         });
     });
 });

@@ -15,6 +15,7 @@
  */
 
 import {Observable} from 'rxjs';
+import { NetworkName } from '../model/blockchain/NetworkName';
 import {NetworkType} from '../model/blockchain/NetworkType';
 
 /**
@@ -29,4 +30,11 @@ export interface NetworkRepository {
      * @return network type enum.
      */
     getNetworkType(): Observable<NetworkType>;
+
+    /**
+     * Get current network type name and description
+     *
+     * @return current network type name and description
+     */
+    getNetworkName(): Observable<NetworkName>;
 }

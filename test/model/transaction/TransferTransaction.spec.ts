@@ -15,12 +15,16 @@
  */
 
 import { expect } from 'chai';
+import {Convert} from '../../../src/core/format';
+import { CreateTransactionFromPayload } from '../../../src/infrastructure/transaction/CreateTransactionFromPayload';
 import { Account } from '../../../src/model/account/Account';
 import { Address } from '../../../src/model/account/Address';
 import { NetworkType } from '../../../src/model/blockchain/NetworkType';
 import { MessageType } from '../../../src/model/message/MessageType';
 import { PersistentHarvestingDelegationMessage } from '../../../src/model/message/PersistentHarvestingDelegationMessage';
 import { PlainMessage } from '../../../src/model/message/PlainMessage';
+import { Mosaic } from '../../../src/model/mosaic/Mosaic';
+import { MosaicId } from '../../../src/model/mosaic/MosaicId';
 import { NetworkCurrencyMosaic } from '../../../src/model/mosaic/NetworkCurrencyMosaic';
 import { NamespaceId } from '../../../src/model/namespace/NamespaceId';
 import { Deadline } from '../../../src/model/transaction/Deadline';
@@ -31,7 +35,8 @@ import { TestingAccount } from '../../conf/conf.spec';
 describe('TransferTransaction', () => {
     let account: Account;
     const generationHash = '57F7DA205008026C776CB6AED843393F04CD458E0AA2D9F1D5F31A402072B2D6';
-    const harvesterPublicKey = '8A78C9E9B0E59D0F74C0D47AB29FBD523C706293A3FA9CD9FE0EEB2C10EA924A';
+    const delegatedPrivateKey = '8A78C9E9B0E59D0F74C0D47AB29FBD523C706293A3FA9CD9FE0EEB2C10EA924A';
+    const recipientPublicKey = '9DBF67474D6E1F8B131B4EB1F5BA0595AFFAE1123607BC1048F342193D7E669F';
     const messageMarker = 'FECC71C764BFE598';
     before(() => {
         account = TestingAccount;
@@ -81,9 +86,9 @@ describe('TransferTransaction', () => {
         const signedTransaction = transferTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
+            256,
             signedTransaction.payload.length,
-        )).to.be.equal('9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E1420D000000746573742D6D657373616765');
+        )).to.be.equal('9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E142000D000000000000746573742D6D657373616765');
     });
 
     it('should createComplete an TransferTransaction object and sign it with mosaics', () => {
@@ -105,11 +110,11 @@ describe('TransferTransaction', () => {
         const signedTransaction = transferTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
+            256,
             signedTransaction.payload.length,
         )).to.be.equal(
-            '9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E1420D000100746573742D6D657373616765' +
-            '44B262C46CEABB8500E1F50500000000');
+            '9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E142010D000000000044B262C46CEABB8500E1F' +
+            '5050000000000746573742D6D657373616765');
     });
 
     it('should createComplete an TransferTransaction object with NamespaceId recipientAddress', () => {
@@ -133,10 +138,10 @@ describe('TransferTransaction', () => {
         const signedTransaction = transferTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
+            256,
             signedTransaction.payload.length,
-        )).to.be.equal('9151776168D24257D8000000000000000000000000000000000D000100746573742D6D657373616765' +
-            '44B262C46CEABB8500E1F50500000000');
+        )).to.be.equal('9151776168D24257D800000000000000000000000000000000010D000000000044B262C46CEABB8500E1F' +
+            '5050000000000746573742D6D657373616765');
     });
 
     it('should format TransferTransaction payload with 25 bytes binary address', () => {
@@ -156,8 +161,8 @@ describe('TransferTransaction', () => {
         const signedTransaction = transferTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
-            290,
+            256,
+            306,
         )).to.be.equal('9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E142');
     });
 
@@ -178,13 +183,13 @@ describe('TransferTransaction', () => {
         const signedTransaction = transferTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
-            290,
+            256,
+            306,
         )).to.be.equal('9151776168D24257D800000000000000000000000000000000');
     });
 
     describe('size', () => {
-        it('should return 158 for TransferTransaction with 1 mosaic and message NEM', () => {
+        it('should return 180 for TransferTransaction with 1 mosaic and message NEM', () => {
             const transaction = TransferTransaction.create(
                 Deadline.create(),
                 Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
@@ -194,7 +199,8 @@ describe('TransferTransaction', () => {
                 PlainMessage.create('NEM'),
                 NetworkType.MIJIN_TEST,
             );
-            expect(transaction.size).to.be.equal(158);
+            expect(Convert.hexToUint8(transaction.serialize()).length).to.be.equal(transaction.size);
+            expect(transaction.size).to.be.equal(180);
         });
     });
 
@@ -217,11 +223,11 @@ describe('TransferTransaction', () => {
         const signedTransaction = transferTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
+            256,
             signedTransaction.payload.length,
         )).to.be.equal(
-            '9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E1420D000100746573742D6D657373616765' +
-            '44B262C46CEABB8500E1F50500000000');
+            '9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E142010D000000000044B262C46CEABB8500E1F' +
+            '5050000000000746573742D6D657373616765');
     });
 
     it('should create Transafer transaction for persistent harvesting delegation request transaction', () => {
@@ -229,7 +235,8 @@ describe('TransferTransaction', () => {
             Deadline.create(),
             Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
             [],
-            PersistentHarvestingDelegationMessage.create(harvesterPublicKey, account.privateKey, NetworkType.MIJIN_TEST),
+            PersistentHarvestingDelegationMessage
+                .create(delegatedPrivateKey, account.privateKey, recipientPublicKey, NetworkType.MIJIN_TEST),
             NetworkType.MIJIN_TEST,
         );
 
@@ -241,7 +248,8 @@ describe('TransferTransaction', () => {
             Deadline.create(),
             Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
             [],
-            PersistentHarvestingDelegationMessage.create(harvesterPublicKey, account.privateKey, NetworkType.MIJIN_TEST),
+            PersistentHarvestingDelegationMessage
+                .create(delegatedPrivateKey, account.privateKey, recipientPublicKey, NetworkType.MIJIN_TEST),
             NetworkType.MIJIN_TEST,
         );
 
@@ -255,7 +263,7 @@ describe('TransferTransaction', () => {
         const signedTransaction = transferTransaction.signWith(account, generationHash);
 
         expect(signedTransaction.payload.substring(
-            240,
+            256,
             signedTransaction.payload.length,
         ).includes(transferTransaction.message.payload)).to.be.true;
     });
@@ -266,7 +274,8 @@ describe('TransferTransaction', () => {
                 Deadline.create(),
                 Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
                 [NetworkCurrencyMosaic.createRelative(100)],
-                PersistentHarvestingDelegationMessage.create(harvesterPublicKey, account.privateKey, NetworkType.MIJIN_TEST),
+                PersistentHarvestingDelegationMessage
+                    .create(delegatedPrivateKey, account.privateKey, recipientPublicKey,  NetworkType.MIJIN_TEST),
                 NetworkType.MIJIN_TEST,
             );
         }).to.throw(Error, 'PersistentDelegationRequestTransaction should be created without Mosaic');
@@ -278,7 +287,7 @@ describe('TransferTransaction', () => {
                 Deadline.create(),
                 Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
                 [NetworkCurrencyMosaic.createRelative(100)],
-                PersistentHarvestingDelegationMessage.create('abc', account.privateKey, NetworkType.MIJIN_TEST),
+                PersistentHarvestingDelegationMessage.create('abc',  account.privateKey, recipientPublicKey, NetworkType.MIJIN_TEST),
                 NetworkType.MIJIN_TEST,
             );
         }).to.throw();
@@ -290,9 +299,85 @@ describe('TransferTransaction', () => {
                 Deadline.create(),
                 Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
                 [NetworkCurrencyMosaic.createRelative(100)],
-                PersistentHarvestingDelegationMessage.create(harvesterPublicKey, 'abc', NetworkType.MIJIN_TEST),
+                PersistentHarvestingDelegationMessage.create(delegatedPrivateKey, 'abc', recipientPublicKey, NetworkType.MIJIN_TEST),
                 NetworkType.MIJIN_TEST,
             );
         }).to.throw();
+    });
+
+    it('should sort the Mosaic array', () => {
+        const mosaics = [
+            new Mosaic(new MosaicId(UInt64.fromUint(200).toDTO()), UInt64.fromUint(0)),
+            new Mosaic(new MosaicId(UInt64.fromUint(100).toDTO()), UInt64.fromUint(0)),
+        ];
+
+        const transferTransaction = TransferTransaction.create(
+            Deadline.create(),
+            Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
+            mosaics,
+            PlainMessage.create('NEM'),
+            NetworkType.MIJIN_TEST,
+        );
+
+        expect(transferTransaction.mosaics[0].id.id.compact()).to.be.equal(200);
+        expect(transferTransaction.mosaics[1].id.id.compact()).to.be.equal(100);
+
+        const signedTransaction = transferTransaction.signWith(account, generationHash);
+
+        expect(signedTransaction.payload.substring(
+            320,
+            384,
+        )).to.be.equal(
+            '64000000000000000000000000000000C8000000000000000000000000000000');
+
+        const sorted = CreateTransactionFromPayload(signedTransaction.payload) as TransferTransaction;
+        expect(sorted.mosaics[0].id.id.compact()).to.be.equal(100);
+        expect(sorted.mosaics[1].id.id.compact()).to.be.equal(200);
+    });
+
+    it('should sort the Mosaic array - using Hex MosaicId', () => {
+        const mosaics = [
+            new Mosaic(new MosaicId('D525AD41D95FCF29'), UInt64.fromUint(5)),
+            new Mosaic(new MosaicId('77A1969932D987D7'), UInt64.fromUint(6)),
+            new Mosaic(new MosaicId('67F2B76F28BD36BA'), UInt64.fromUint(10)),
+        ];
+
+        const transferTransaction = TransferTransaction.create(
+            Deadline.create(),
+            Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC'),
+            mosaics,
+            PlainMessage.create('NEM'),
+            NetworkType.MIJIN_TEST,
+        );
+
+        expect(transferTransaction.mosaics[0].id.toHex()).to.be.equal('D525AD41D95FCF29');
+        expect(transferTransaction.mosaics[1].id.toHex()).to.be.equal('77A1969932D987D7');
+        expect(transferTransaction.mosaics[2].id.toHex()).to.be.equal('67F2B76F28BD36BA');
+
+        const signedTransaction = transferTransaction.signWith(account, generationHash);
+        const sorted = CreateTransactionFromPayload(signedTransaction.payload) as TransferTransaction;
+        expect(sorted.mosaics[0].id.toHex()).to.be.equal('67F2B76F28BD36BA');
+        expect(sorted.mosaics[1].id.toHex()).to.be.equal('77A1969932D987D7');
+        expect(sorted.mosaics[2].id.toHex()).to.be.equal('D525AD41D95FCF29');
+
+    });
+
+    it('Test Serialization and Deserialization Using namespaceIds', () => {
+        const namespaceId = new NamespaceId('testaccount2');
+​
+        const transferTransaction = TransferTransaction.create(
+            Deadline.createFromDTO('1'),
+            namespaceId,
+            [NetworkCurrencyMosaic.createAbsolute(1)],
+            PlainMessage.create('test-message'),
+            NetworkType.MIJIN_TEST,
+        );
+​
+        const payload = transferTransaction.serialize();
+        const newTransaction = CreateTransactionFromPayload(payload) as TransferTransaction;
+        const newPayload = newTransaction.serialize();
+​
+        expect(newPayload).to.be.equal(payload);
+        expect(newTransaction.recipientToString()).to.be.equal(transferTransaction.recipientToString());
     });
 });

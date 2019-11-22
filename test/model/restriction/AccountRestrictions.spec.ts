@@ -20,7 +20,7 @@ import {Address} from '../../../src/model/account/Address';
 import { AccountRestriction } from '../../../src/model/restriction/AccountRestriction';
 import { AccountRestrictionModificationAction } from '../../../src/model/restriction/AccountRestrictionModificationAction';
 import { AccountRestrictions } from '../../../src/model/restriction/AccountRestrictions';
-import { AccountRestrictionType } from '../../../src/model/restriction/AccountRestrictionType';
+import { AccountRestrictionFlags } from '../../../src/model/restriction/AccountRestrictionType';
 
 describe('AccountRestrictions', () => {
 
@@ -28,8 +28,8 @@ describe('AccountRestrictions', () => {
         const accountRestrictionsDTO = {
             address: Address.createFromEncoded('9050B9837EFAB4BBE8A4B9BB32D812F9885C00D8FC1650E142'),
             restrictions: [{
-                restrictionType: AccountRestrictionType.AllowIncomingAddress,
-                values: [{modificationType: AccountRestrictionModificationAction.Add,
+                restrictionFlags: AccountRestrictionFlags.AllowIncomingAddress,
+                values: [{modificationAction: AccountRestrictionModificationAction.Add,
                           value: 'SDUP5PLHDXKBX3UU5Q52LAY4WYEKGEWC6IB3VBFM',
                          }],
             }],
@@ -39,7 +39,7 @@ describe('AccountRestrictions', () => {
             accountRestrictionsDTO.address,
             accountRestrictionsDTO.restrictions.map((r) => {
                 return new AccountRestriction(
-                    r.restrictionType,
+                    r.restrictionFlags,
                     r.values,
                 );
             }),
@@ -47,10 +47,10 @@ describe('AccountRestrictions', () => {
 
         expect(accountRestrictions.address).to.be.equal(accountRestrictionsDTO.address);
         deepEqual(accountRestrictions.restrictions.length, accountRestrictionsDTO.restrictions.length);
-        deepEqual(accountRestrictions.restrictions[0].restrictionType, accountRestrictionsDTO.restrictions[0].restrictionType);
+        deepEqual(accountRestrictions.restrictions[0].restrictionFlags, accountRestrictionsDTO.restrictions[0].restrictionFlags);
         deepEqual(accountRestrictions.restrictions[0].values.length, accountRestrictionsDTO.restrictions[0].values.length);
-        deepEqual((accountRestrictions.restrictions[0].values[0] as any).modificationType,
-            accountRestrictionsDTO.restrictions[0].values[0].modificationType);
+        deepEqual((accountRestrictions.restrictions[0].values[0] as any).modificationAction,
+            accountRestrictionsDTO.restrictions[0].values[0].modificationAction);
         deepEqual((accountRestrictions.restrictions[0].values[0] as any).value, accountRestrictionsDTO.restrictions[0].values[0].value);
     });
 });

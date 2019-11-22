@@ -55,6 +55,7 @@ export class MetadataTransactionService {
      * @param senderPublicAccount - sender (signer) public account
      * @param targetId - Target Id (MosaicId | NamespaceId)
      * @param maxFee - Max fee
+     * @return {AccountMetadataTransaction | MosaicMetadataTransaction | NamespaceMetadataTransaction}
      */
     public createMetadataTransaction(deadline: Deadline,
                                      networkType: NetworkType,
@@ -64,7 +65,8 @@ export class MetadataTransactionService {
                                      value: string,
                                      senderPublicAccount: PublicAccount,
                                      targetId?: MosaicId | NamespaceId,
-                                     maxFee: UInt64 = new UInt64([0, 0])): Observable<Transaction> {
+                                     maxFee: UInt64 = new UInt64([0, 0])):
+                                     Observable<AccountMetadataTransaction | MosaicMetadataTransaction | NamespaceMetadataTransaction> {
         switch (metadataType) {
             case MetadataType.Account:
                 return this.createAccountMetadataTransaction(
@@ -137,7 +139,7 @@ export class MetadataTransactionService {
                     targetPublicKey,
                     key,
                     newValueBytes.length - currentValueByte.length,
-                    value,
+                    Convert.decodeHex(Convert.xor(currentValueByte, newValueBytes)),
                     networkType,
                     maxFee,
                 );
@@ -191,7 +193,7 @@ export class MetadataTransactionService {
                     key,
                     mosaicId,
                     newValueBytes.length - currentValueByte.length,
-                    value,
+                    Convert.decodeHex(Convert.xor(currentValueByte, newValueBytes)),
                     networkType,
                     maxFee,
                 );
@@ -246,7 +248,7 @@ export class MetadataTransactionService {
                     key,
                     namespaceId,
                     newValueBytes.length - currentValueByte.length,
-                    value,
+                    Convert.decodeHex(Convert.xor(currentValueByte, newValueBytes)),
                     networkType,
                     maxFee,
                 );

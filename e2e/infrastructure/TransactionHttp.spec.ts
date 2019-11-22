@@ -36,7 +36,7 @@ import {NetworkCurrencyMosaic} from '../../src/model/mosaic/NetworkCurrencyMosai
 import { AliasAction } from '../../src/model/namespace/AliasAction';
 import { NamespaceId } from '../../src/model/namespace/NamespaceId';
 import { AccountRestrictionModificationAction } from '../../src/model/restriction/AccountRestrictionModificationAction';
-import { AccountRestrictionType } from '../../src/model/restriction/AccountRestrictionType';
+import { AccountRestrictionFlags } from '../../src/model/restriction/AccountRestrictionType';
 import { MosaicRestrictionType } from '../../src/model/restriction/MosaicRestrictionType';
 import { AccountAddressRestrictionTransaction } from '../../src/model/transaction/AccountAddressRestrictionTransaction';
 import { AccountLinkTransaction } from '../../src/model/transaction/AccountLinkTransaction';
@@ -592,23 +592,18 @@ describe('TransactionHttp', () => {
         });
 
         it('standalone', (done) => {
-            const addressRestrictionFilter = AccountRestrictionModification.createForAddress(
-                AccountRestrictionModificationAction.Add,
-                account3.address,
-            );
             const addressModification = AccountRestrictionTransaction.createAddressRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockOutgoingAddress,
-                [addressRestrictionFilter],
+                AccountRestrictionFlags.BlockOutgoingAddress,
+                [account3.address],
+                [],
                 NetworkType.MIJIN_TEST,
             );
             const signedTransaction = addressModification.signWith(account, generationHash);
 
             listener.confirmed(account.address).subscribe((transaction: AccountAddressRestrictionTransaction) => {
-                expect(transaction.modifications, 'Modifications').not.to.be.undefined;
-                expect(transaction.modifications[0].modificationType, 'Modifications.ModificationType').not.to.be.undefined;
-                expect(transaction.modifications[0].value, 'Modifications.Value').not.to.be.undefined;
-                expect(transaction.restrictionType, 'RestrictionType').not.to.be.undefined;
+                expect(transaction.restrictionAdditions, 'RestrictionAdditions').not.to.be.undefined;
+                expect(transaction.restrictionFlags, 'RestrictionFlags').not.to.be.undefined;
                 done();
             });
             listener.status(account.address).subscribe((error) => {
@@ -629,14 +624,11 @@ describe('TransactionHttp', () => {
             return listener.close();
         });
         it('aggregate', (done) => {
-            const addressRestrictionFilter = AccountRestrictionModification.createForAddress(
-                AccountRestrictionModificationAction.Remove,
-                account3.address,
-            );
             const addressModification = AccountRestrictionTransaction.createAddressRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockOutgoingAddress,
-                [addressRestrictionFilter],
+                AccountRestrictionFlags.BlockOutgoingAddress,
+                [],
+                [account3.address],
                 NetworkType.MIJIN_TEST,
             );
             const aggregateTransaction = AggregateTransaction.createComplete(Deadline.create(),
@@ -668,23 +660,19 @@ describe('TransactionHttp', () => {
         });
 
         it('standalone', (done) => {
-            const addressRestrictionFilter = AccountRestrictionModification.createForAddress(
-                AccountRestrictionModificationAction.Add,
-                account3.address,
-            );
             const addressModification = AccountRestrictionTransaction.createAddressRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockIncomingAddress,
-                [addressRestrictionFilter],
+                AccountRestrictionFlags.BlockIncomingAddress,
+                [account3.address],
+                [],
                 NetworkType.MIJIN_TEST,
             );
             const signedTransaction = addressModification.signWith(account, generationHash);
 
             listener.confirmed(account.address).subscribe((transaction: AccountAddressRestrictionTransaction) => {
-                expect(transaction.modifications, 'Modifications').not.to.be.undefined;
-                expect(transaction.modifications[0].modificationType, 'Modifications.ModificationType').not.to.be.undefined;
-                expect(transaction.modifications[0].value, 'Modifications.Value').not.to.be.undefined;
-                expect(transaction.restrictionType, 'RestrictionType').not.to.be.undefined;
+                expect(transaction.restrictionAdditions, 'RestrictionAdditions').not.to.be.undefined;
+                expect(transaction.restrictionDeletions, 'RestrictionDeletions').not.to.be.undefined;
+                expect(transaction.restrictionFlags, 'RestrictionFlags').not.to.be.undefined;
                 done();
             });
             listener.status(account.address).subscribe((error) => {
@@ -705,14 +693,11 @@ describe('TransactionHttp', () => {
             return listener.close();
         });
         it('aggregate', (done) => {
-            const addressRestrictionFilter = AccountRestrictionModification.createForAddress(
-                AccountRestrictionModificationAction.Remove,
-                account3.address,
-            );
             const addressModification = AccountRestrictionTransaction.createAddressRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockIncomingAddress,
-                [addressRestrictionFilter],
+                AccountRestrictionFlags.BlockIncomingAddress,
+                [],
+                [account3.address],
                 NetworkType.MIJIN_TEST,
             );
             const aggregateTransaction = AggregateTransaction.createComplete(Deadline.create(),
@@ -749,17 +734,17 @@ describe('TransactionHttp', () => {
             );
             const addressModification = AccountRestrictionTransaction.createMosaicRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockMosaic,
-                [mosaicRestrictionFilter],
+                AccountRestrictionFlags.BlockMosaic,
+                [mosaicId],
+                [],
                 NetworkType.MIJIN_TEST,
             );
             const signedTransaction = addressModification.signWith(account, generationHash);
 
             listener.confirmed(account.address).subscribe((transaction: AccountMosaicRestrictionTransaction) => {
-                expect(transaction.modifications, 'Modifications').not.to.be.undefined;
-                expect(transaction.modifications[0].modificationType, 'Modifications.ModificationType').not.to.be.undefined;
-                expect(transaction.modifications[0].value, 'Modifications.Value').not.to.be.undefined;
-                expect(transaction.restrictionType, 'RestrictionType').not.to.be.undefined;
+                expect(transaction.restrictionAdditions, 'RestrictionAdditions').not.to.be.undefined;
+                expect(transaction.restrictionDeletions, 'RestrictionDeletions').not.to.be.undefined;
+                expect(transaction.restrictionFlags, 'RestrictionFlags').not.to.be.undefined;
                 done();
             });
             listener.status(account.address).subscribe((error) => {
@@ -780,14 +765,11 @@ describe('TransactionHttp', () => {
             return listener.close();
         });
         it('aggregate', (done) => {
-            const mosaicRestrictionFilter = AccountRestrictionModification.createForMosaic(
-                AccountRestrictionModificationAction.Remove,
-                mosaicId,
-            );
             const addressModification = AccountRestrictionTransaction.createMosaicRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockMosaic,
-                [mosaicRestrictionFilter],
+                AccountRestrictionFlags.BlockMosaic,
+                [],
+                [mosaicId],
                 NetworkType.MIJIN_TEST,
             );
             const aggregateTransaction = AggregateTransaction.createComplete(Deadline.create(),
@@ -818,23 +800,19 @@ describe('TransactionHttp', () => {
         });
 
         it('standalone', (done) => {
-            const operationRestrictionFilter = AccountRestrictionModification.createForOperation(
-                AccountRestrictionModificationAction.Add,
-                TransactionType.LINK_ACCOUNT,
-            );
             const addressModification = AccountRestrictionTransaction.createOperationRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockIncomingTransactionType,
-                [operationRestrictionFilter],
+                AccountRestrictionFlags.BlockIncomingTransactionType,
+                [TransactionType.LINK_ACCOUNT],
+                [],
                 NetworkType.MIJIN_TEST,
             );
             const signedTransaction = addressModification.signWith(account3, generationHash);
 
             listener.confirmed(account3.address).subscribe((transaction: AccountOperationRestrictionTransaction) => {
-                expect(transaction.modifications, 'Modifications').not.to.be.undefined;
-                expect(transaction.modifications[0].modificationType, 'Modifications.ModificationType').not.to.be.undefined;
-                expect(transaction.modifications[0].value, 'Modifications.Value').not.to.be.undefined;
-                expect(transaction.restrictionType, 'RestrictionType').not.to.be.undefined;
+                expect(transaction.restrictionAdditions, 'RestrictionAdditions').not.to.be.undefined;
+                expect(transaction.restrictionDeletions, 'RestrictionDeletions').not.to.be.undefined;
+                expect(transaction.restrictionFlags, 'RestrictionFlags').not.to.be.undefined;
                 done();
             });
             listener.status(account3.address).subscribe((error) => {
@@ -855,14 +833,11 @@ describe('TransactionHttp', () => {
             return listener.close();
         });
         it('aggregate', (done) => {
-            const operationRestrictionFilter = AccountRestrictionModification.createForOperation(
-                AccountRestrictionModificationAction.Remove,
-                TransactionType.LINK_ACCOUNT,
-            );
             const addressModification = AccountRestrictionTransaction.createOperationRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockIncomingTransactionType,
-                [operationRestrictionFilter],
+                AccountRestrictionFlags.BlockIncomingTransactionType,
+                [],
+                [TransactionType.LINK_ACCOUNT],
                 NetworkType.MIJIN_TEST,
             );
             const aggregateTransaction = AggregateTransaction.createComplete(Deadline.create(),
@@ -900,17 +875,17 @@ describe('TransactionHttp', () => {
             );
             const addressModification = AccountRestrictionTransaction.createOperationRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockOutgoingTransactionType,
-                [operationRestrictionFilter],
+                AccountRestrictionFlags.BlockOutgoingTransactionType,
+                [TransactionType.LINK_ACCOUNT],
+                [],
                 NetworkType.MIJIN_TEST,
             );
             const signedTransaction = addressModification.signWith(account3, generationHash);
 
             listener.confirmed(account3.address).subscribe((transaction: AccountOperationRestrictionTransaction) => {
-                expect(transaction.modifications, 'Modifications').not.to.be.undefined;
-                expect(transaction.modifications[0].modificationType, 'Modifications.ModificationType').not.to.be.undefined;
-                expect(transaction.modifications[0].value, 'Modifications.Value').not.to.be.undefined;
-                expect(transaction.restrictionType, 'RestrictionType').not.to.be.undefined;
+                expect(transaction.restrictionAdditions, 'RestrictionAdditions').not.to.be.undefined;
+                expect(transaction.restrictionDeletions, 'RestrictionDeletions').not.to.be.undefined;
+                expect(transaction.restrictionFlags, 'RestrictionFlags').not.to.be.undefined;
                 done();
             });
             listener.status(account3.address).subscribe((error) => {
@@ -931,14 +906,11 @@ describe('TransactionHttp', () => {
             return listener.close();
         });
         it('aggregate', (done) => {
-            const operationRestrictionFilter = AccountRestrictionModification.createForOperation(
-                AccountRestrictionModificationAction.Remove,
-                TransactionType.LINK_ACCOUNT,
-            );
             const addressModification = AccountRestrictionTransaction.createOperationRestrictionModificationTransaction(
                 Deadline.create(),
-                AccountRestrictionType.BlockOutgoingTransactionType,
-                [operationRestrictionFilter],
+                AccountRestrictionFlags.BlockOutgoingTransactionType,
+                [],
+                [TransactionType.LINK_ACCOUNT],
                 NetworkType.MIJIN_TEST,
             );
             const aggregateTransaction = AggregateTransaction.createComplete(Deadline.create(),
@@ -1059,6 +1031,40 @@ describe('TransactionHttp', () => {
             transactionHttp.announce(signedTransaction);
         });
     });
+
+    describe('Transfer Transaction using address alias', () => {
+        let listener: Listener;
+        before (() => {
+            listener = new Listener(config.apiUrl);
+            return listener.open();
+        });
+        after(() => {
+            return listener.close();
+        });
+
+        it('Announce TransferTransaction', (done) => {
+            const transferTransaction = TransferTransaction.create(
+                Deadline.create(),
+                namespaceId,
+                [NetworkCurrencyMosaic.createAbsolute(1)],
+                PlainMessage.create('test-message'),
+                NetworkType.MIJIN_TEST,
+            );
+            const signedTransaction = transferTransaction.signWith(account, generationHash);
+
+            listener.confirmed(account.address).subscribe((transaction: TransferTransaction) => {
+                expect(transaction.recipientAddress, 'AecipientAddress').not.to.be.undefined;
+                done();
+            });
+            listener.status(account.address).subscribe((error) => {
+                console.log('Error:', error);
+                assert(false);
+                done();
+            });
+            transactionHttp.announce(signedTransaction);
+        });
+    });
+
     describe('AddressAliasTransaction', () => {
         let listener: Listener;
         before (() => {
@@ -1114,7 +1120,7 @@ describe('TransactionHttp', () => {
             const signedTransaction = mosaicSupplyChangeTransaction.signWith(account, generationHash);
             listener.confirmed(account.address).subscribe((transaction: MosaicSupplyChangeTransaction) => {
                 expect(transaction.delta, 'Delta').not.to.be.undefined;
-                expect(transaction.direction, 'Direction').not.to.be.undefined;
+                expect(transaction.action, 'Action').not.to.be.undefined;
                 expect(transaction.mosaicId, 'MosaicId').not.to.be.undefined;
                 done();
             });
@@ -2109,7 +2115,7 @@ describe('TransactionHttp', () => {
 
     describe('transactions', () => {
         it('should call transactions successfully', (done) => {
-            accountHttp.transactions(account.publicAccount.address).subscribe((transactions) => {
+            accountHttp.getAccountTransactions(account.publicAccount.address).subscribe((transactions) => {
                 const transaction = transactions[0];
                 transactionId = transaction.transactionInfo!.id;
                 transactionHash = transaction.transactionInfo!.hash;

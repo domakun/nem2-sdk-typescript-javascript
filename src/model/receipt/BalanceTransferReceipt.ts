@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import { Convert } from '../../core/format/Convert';
+import { UnresolvedMapping } from "../../core/utils/UnresolvedMapping";
+import { GeneratorUtils } from '../../infrastructure/catbuffer/GeneratorUtils';
 import { Address } from '../account/Address';
 import { PublicAccount } from '../account/PublicAccount';
 import { MosaicId } from '../mosaic/MosaicId';
@@ -59,5 +62,31 @@ export class BalanceTransferReceipt extends Receipt {
                 type: ReceiptType,
                 size?: number) {
         super(version, type, size);
+    }
+
+    /**
+     * @internal
+     * Generate buffer
+     * @return {Uint8Array}
+     */
+    public serialize(): Uint8Array {
+        const recipient = this.getRecipientBytes();
+        const buffer = new Uint8Array(52 + recipient.length);
+        buffer.set(GeneratorUtils.uintToBuffer(ReceiptVersion.BALANCE_TRANSFER, 2));
+        buffer.set(GeneratorUtils.uintToBuffer(this.type, 2), 2);
+        buffer.set(GeneratorUtils.uint64ToBuffer(UInt64.fromHex(this.mosaicId.toHex()).toDTO()), 4);
+        buffer.set(GeneratorUtils.uint64ToBuffer(UInt64.fromHex(this.amount.toHex()).toDTO()), 12);
+        buffer.set(Convert.hexToUint8(this.sender.publicKey), 20);
+        buffer.set(recipient, 52);
+        return buffer;
+    }
+
+    /**
+     * @internal
+     * Generate buffer for recipientAddress
+     * @return {Uint8Array}
+     */
+    private getRecipientBytes(): Uint8Array {
+        return UnresolvedMapping.toUnresolvedAddressBytes(this.recipientAddress, this.sender.address.networkType);
     }
 }

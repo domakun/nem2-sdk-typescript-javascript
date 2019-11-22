@@ -14,30 +14,32 @@
  * limitations under the License.
  */
 
-import { KeyPair, SHA3Hasher } from '../../core/crypto';
-import { Convert } from '../../core/format';
-import { AggregateBondedTransactionBuilder } from '../../infrastructure/catbuffer/AggregateBondedTransactionBuilder';
-import { AggregateCompleteTransactionBuilder } from '../../infrastructure/catbuffer/AggregateCompleteTransactionBuilder';
-import { AmountDto } from '../../infrastructure/catbuffer/AmountDto';
-import { CosignatureBuilder } from '../../infrastructure/catbuffer/CosignatureBuilder';
-import { GeneratorUtils } from '../../infrastructure/catbuffer/GeneratorUtils';
-import { KeyDto } from '../../infrastructure/catbuffer/KeyDto';
-import { SignatureDto } from '../../infrastructure/catbuffer/SignatureDto';
-import { TimestampDto } from '../../infrastructure/catbuffer/TimestampDto';
-import { CreateTransactionFromPayload } from '../../infrastructure/transaction/CreateTransactionFromPayload';
-import { Account } from '../account/Account';
-import { PublicAccount } from '../account/PublicAccount';
-import { NetworkType } from '../blockchain/NetworkType';
-import { UInt64 } from '../UInt64';
-import { AggregateTransactionCosignature } from './AggregateTransactionCosignature';
-import { CosignatureSignedTransaction } from './CosignatureSignedTransaction';
-import { Deadline } from './Deadline';
-import { InnerTransaction } from './InnerTransaction';
-import { SignedTransaction } from './SignedTransaction';
-import { Transaction } from './Transaction';
-import { TransactionInfo } from './TransactionInfo';
-import { TransactionType } from './TransactionType';
-import { TransactionVersion } from './TransactionVersion';
+import { sha3_256 } from 'js-sha3';
+import {KeyPair, MerkleHashBuilder, SHA3Hasher, SignSchema} from '../../core/crypto';
+import {Convert, RawArray} from '../../core/format';
+import {AggregateBondedTransactionBuilder} from '../../infrastructure/catbuffer/AggregateBondedTransactionBuilder';
+import {AggregateCompleteTransactionBuilder} from '../../infrastructure/catbuffer/AggregateCompleteTransactionBuilder';
+import {AmountDto} from '../../infrastructure/catbuffer/AmountDto';
+import {CosignatureBuilder} from '../../infrastructure/catbuffer/CosignatureBuilder';
+import {GeneratorUtils} from '../../infrastructure/catbuffer/GeneratorUtils';
+import { Hash256Dto } from '../../infrastructure/catbuffer/Hash256Dto';
+import {KeyDto} from '../../infrastructure/catbuffer/KeyDto';
+import {SignatureDto} from '../../infrastructure/catbuffer/SignatureDto';
+import {TimestampDto} from '../../infrastructure/catbuffer/TimestampDto';
+import {CreateTransactionFromPayload} from '../../infrastructure/transaction/CreateTransactionFromPayload';
+import {Account} from '../account/Account';
+import {PublicAccount} from '../account/PublicAccount';
+import {NetworkType} from '../blockchain/NetworkType';
+import {UInt64} from '../UInt64';
+import {AggregateTransactionCosignature} from './AggregateTransactionCosignature';
+import {CosignatureSignedTransaction} from './CosignatureSignedTransaction';
+import {Deadline} from './Deadline';
+import {InnerTransaction} from './InnerTransaction';
+import {SignedTransaction} from './SignedTransaction';
+import {Transaction} from './Transaction';
+import {TransactionInfo} from './TransactionInfo';
+import {TransactionType} from './TransactionType';
+import {TransactionVersion} from './TransactionVersion';
 
 /**
  * Aggregate innerTransactions contain multiple innerTransactions that can be initiated by different accounts.
@@ -133,12 +135,12 @@ export class AggregateTransaction extends Transaction {
          * Get transaction type from the payload hex
          * As buffer uses separate builder class for Complete and bonded
          */
-        const type = parseInt(Convert.uint8ToHex(Convert.hexToUint8(payload.substring(204, 208)).reverse()), 16);
+        const type = parseInt(Convert.uint8ToHex(Convert.hexToUint8(payload.substring(220, 224)).reverse()), 16);
         const builder = type === TransactionType.AGGREGATE_COMPLETE ?
             AggregateCompleteTransactionBuilder.loadFromBinary(Convert.hexToUint8(payload)) :
             AggregateBondedTransactionBuilder.loadFromBinary(Convert.hexToUint8(payload));
         const innerTransactionHex = Convert.uint8ToHex(builder.getTransactions());
-        const networkType = Convert.hexToUint8(builder.getVersion().toString(16))[0];
+        const networkType = builder.getNetwork().valueOf();
         const consignaturesHex = Convert.uint8ToHex(builder.getCosignatures());
 
         /**
@@ -150,7 +152,7 @@ export class AggregateTransaction extends Transaction {
             const payloadSize = parseInt(Convert.uint8ToHex(Convert.hexToUint8(innerBinary.substring(0, 8)).reverse()), 16) * 2;
             const innerTransaction = innerBinary.substring(0, payloadSize);
             embeddedTransactionArray.push(innerTransaction);
-            innerBinary = innerBinary.substring(payloadSize);
+            innerBinary = innerBinary.substring(payloadSize).replace(/\b0+/g, '');
         }
 
         /**
@@ -158,10 +160,10 @@ export class AggregateTransaction extends Transaction {
          */
         const consignatureArray = consignaturesHex.match(/.{1,192}/g);
         const consignatures = consignatureArray ? consignatureArray.map((cosignature) =>
-                    new AggregateTransactionCosignature(
-                        cosignature.substring(64, 192),
-                        PublicAccount.createFromPublicKey(cosignature.substring(0, 64), networkType),
-                )) : [];
+            new AggregateTransactionCosignature(
+                cosignature.substring(64, 192),
+                PublicAccount.createFromPublicKey(cosignature.substring(0, 64), networkType),
+            )) : [];
 
         return type === TransactionType.AGGREGATE_COMPLETE ?
             AggregateTransaction.createComplete(
@@ -195,6 +197,17 @@ export class AggregateTransaction extends Transaction {
     }
 
     /**
+     * @description add cosignatures to current list
+     * @param {AggregateTransactionCosignature[]} transaction
+     * @returns {AggregateTransaction}
+     * @memberof AggregateTransaction
+     */
+    public addCosignatures(cosigs: AggregateTransactionCosignature[]): AggregateTransaction {
+        const cosignatures = this.cosignatures.concat(cosigs);
+        return Object.assign({__proto__: Object.getPrototypeOf(this)}, this, {cosignatures});
+    }
+
+    /**
      * @internal
      * Sign transaction with cosignatories creating a new SignedTransaction
      * @param initiatorAccount - Initiator account
@@ -222,7 +235,7 @@ export class AggregateTransaction extends Transaction {
 
         signedPayload = littleEndianSize + signedPayload.substr(8, signedPayload.length - 8);
         return new SignedTransaction(signedPayload, signedTransaction.hash, initiatorAccount.publicKey,
-                                     this.type, this.networkType);
+            this.type, this.networkType);
     }
 
     /**
@@ -251,7 +264,7 @@ export class AggregateTransaction extends Transaction {
 
         signedPayload = littleEndianSize + signedPayload.substr(8, signedPayload.length - 8);
         return new SignedTransaction(signedPayload, signedTransaction.hash, initiatorAccount.publicKey,
-                                     this.type, this.networkType);
+            this.type, this.networkType);
     }
 
     /**
@@ -272,17 +285,24 @@ export class AggregateTransaction extends Transaction {
      */
     public get size(): number {
         const byteSize = super.size;
-
+        const byteTransactionHash = 32;
         // set static byte size fields
-        const byteTransactionsSize = 4;
+        const bytePayloadSize = 4;
+
+        const byteHeader_Reserved1 = 4;
 
         // calculate each inner transaction's size
         let byteTransactions = 0;
-        this.innerTransactions.map((transaction) => {
-            byteTransactions += transaction.size;
+        this.innerTransactions.forEach((transaction) => {
+            const transactionByte = transaction.toAggregateTransactionBytes();
+            const innerTransactionPadding = new Uint8Array(this.getInnerTransactionPaddingSize(transactionByte.length, 8));
+            const paddedTransactionByte = GeneratorUtils.concatTypedArrays(transactionByte, innerTransactionPadding);
+            byteTransactions += paddedTransactionByte.length;
         });
 
-        return byteSize + byteTransactionsSize + byteTransactions;
+        const byteCosignatures = this.cosignatures.length * 96;
+        return byteSize + byteTransactionHash + bytePayloadSize + byteHeader_Reserved1 +
+               byteTransactions + byteCosignatures;
     }
 
     /**
@@ -292,11 +312,12 @@ export class AggregateTransaction extends Transaction {
     protected generateBytes(): Uint8Array {
         const signerBuffer = new Uint8Array(32);
         const signatureBuffer = new Uint8Array(64);
-
         let transactions = Uint8Array.from([]);
         this.innerTransactions.forEach((transaction) => {
             const transactionByte = transaction.toAggregateTransactionBytes();
-            transactions = GeneratorUtils.concatTypedArrays(transactions, transactionByte);
+            const innerTransactionPadding = new Uint8Array(this.getInnerTransactionPaddingSize(transactionByte.length, 8));
+            const paddedTransactionByte = GeneratorUtils.concatTypedArrays(transactionByte, innerTransactionPadding);
+            transactions = GeneratorUtils.concatTypedArrays(transactions, paddedTransactionByte);
         });
 
         let cosignatures = Uint8Array.from([]);
@@ -315,9 +336,11 @@ export class AggregateTransaction extends Transaction {
                 new SignatureDto(signatureBuffer),
                 new KeyDto(signerBuffer),
                 this.versionToDTO(),
+                this.networkType.valueOf(),
                 this.type.valueOf(),
                 new AmountDto(this.maxFee.toDTO()),
                 new TimestampDto(this.deadline.toDTO()),
+                new Hash256Dto(this.calculateInnerTransactionHash()),
                 transactions,
                 cosignatures,
             ) :
@@ -325,9 +348,11 @@ export class AggregateTransaction extends Transaction {
                 new SignatureDto(signatureBuffer),
                 new KeyDto(signerBuffer),
                 this.versionToDTO(),
+                this.networkType.valueOf(),
                 this.type.valueOf(),
                 new AmountDto(this.maxFee.toDTO()),
                 new TimestampDto(this.deadline.toDTO()),
+                new Hash256Dto(this.calculateInnerTransactionHash()),
                 transactions,
                 cosignatures,
             );
@@ -340,5 +365,39 @@ export class AggregateTransaction extends Transaction {
      */
     protected generateEmbeddedBytes(): Uint8Array {
         throw new Error('Method not implemented');
+    }
+
+    /**
+     * @internal
+     * Generate inner transaction root hash (merkle tree)
+     * @returns {Uint8Array}
+     */
+    private calculateInnerTransactionHash(): Uint8Array {
+        // Note: Transaction hashing *always* uses SHA3
+        const hasher  = SHA3Hasher.createHasher(32, SignSchema.SHA3);
+        const builder = new MerkleHashBuilder(32, SignSchema.SHA3);
+        this.innerTransactions.forEach((transaction) => {
+            const entityHash: Uint8Array = new Uint8Array(32);
+
+            // for each embedded transaction hash their body
+            hasher.reset();
+            hasher.update(transaction.toAggregateTransactionBytes());
+            hasher.finalize(entityHash);
+
+            // update merkle tree (add transaction hash)
+            builder.update(entityHash);
+        });
+
+        // calculate root hash with all transactions
+        return builder.getRootHash();
+    }
+
+    /**
+     * Gets the padding size that rounds up \a size to the next multiple of \a alignment.
+     * @param size Inner transaction size
+     * @param alignment Next multiple alignment
+     */
+    private getInnerTransactionPaddingSize(size: number, alignment: number): number {
+        return 0 === size % alignment ? 0 : alignment - (size % alignment);
     }
 }

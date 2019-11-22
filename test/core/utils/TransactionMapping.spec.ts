@@ -20,27 +20,29 @@ import { sha3_256 } from 'js-sha3';
 import { Convert } from '../../../src/core/format';
 import { TransactionMapping } from '../../../src/core/utils/TransactionMapping';
 import { Account } from '../../../src/model/account/Account';
-import { AccountRestrictionModificationAction } from '../../../src/model/restriction/AccountRestrictionModificationAction';
-import { AccountRestrictionType } from '../../../src/model/restriction/AccountRestrictionType';
 import { Address } from '../../../src/model/account/Address';
 import { PublicAccount } from '../../../src/model/account/PublicAccount';
 import { NetworkType } from '../../../src/model/blockchain/NetworkType';
 import { EncryptedMessage } from '../../../src/model/message/EncryptedMessage';
 import { MessageType } from '../../../src/model/message/MessageType';
 import { PlainMessage } from '../../../src/model/message/PlainMessage';
+import { Mosaic } from '../../../src/model/mosaic/Mosaic';
 import { MosaicFlags } from '../../../src/model/mosaic/MosaicFlags';
 import { MosaicId } from '../../../src/model/mosaic/MosaicId';
 import { MosaicNonce } from '../../../src/model/mosaic/MosaicNonce';
-import { MosaicRestrictionType } from '../../../src/model/restriction/MosaicRestrictionType';
 import { MosaicSupplyChangeAction } from '../../../src/model/mosaic/MosaicSupplyChangeAction';
 import { NetworkCurrencyMosaic } from '../../../src/model/mosaic/NetworkCurrencyMosaic';
 import { AliasAction } from '../../../src/model/namespace/AliasAction';
 import { NamespaceId } from '../../../src/model/namespace/NamespaceId';
 import { NamespaceRegistrationType } from '../../../src/model/namespace/NamespaceRegistrationType';
+import { AccountRestrictionModificationAction } from '../../../src/model/restriction/AccountRestrictionModificationAction';
+import { AccountRestrictionFlags } from '../../../src/model/restriction/AccountRestrictionType';
+import { MosaicRestrictionType } from '../../../src/model/restriction/MosaicRestrictionType';
 import { AccountAddressRestrictionTransaction } from '../../../src/model/transaction/AccountAddressRestrictionTransaction';
 import { AccountLinkTransaction } from '../../../src/model/transaction/AccountLinkTransaction';
 import { AccountMetadataTransaction } from '../../../src/model/transaction/AccountMetadataTransaction';
 import { AccountMosaicRestrictionTransaction } from '../../../src/model/transaction/AccountMosaicRestrictionTransaction';
+import { AccountOperationRestrictionTransaction } from '../../../src/model/transaction/AccountOperationRestrictionTransaction';
 import { AccountRestrictionModification } from '../../../src/model/transaction/AccountRestrictionModification';
 import { AccountRestrictionTransaction } from '../../../src/model/transaction/AccountRestrictionTransaction';
 import { AddressAliasTransaction } from '../../../src/model/transaction/AddressAliasTransaction';
@@ -82,8 +84,9 @@ describe('TransactionMapping - createFromPayload', () => {
         );
         const addressRestrictionTransaction = AccountRestrictionTransaction.createAddressRestrictionModificationTransaction(
             Deadline.create(),
-            AccountRestrictionType.AllowIncomingAddress,
-            [addressRestrictionFilter],
+            AccountRestrictionFlags.AllowIncomingAddress,
+            [address],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
@@ -92,54 +95,47 @@ describe('TransactionMapping - createFromPayload', () => {
         const transaction = TransactionMapping
             .createFromPayload(signedTransaction.payload) as AccountAddressRestrictionTransaction;
 
-        expect(transaction.restrictionType).to.be.equal(AccountRestrictionType.AllowIncomingAddress);
-        expect(transaction.modifications[0].modificationType).to.be.equal(AccountRestrictionModificationAction.Add);
-        expect(transaction.modifications[0].value).to.be.equal('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC');
+        expect(transaction.restrictionFlags).to.be.equal(AccountRestrictionFlags.AllowIncomingAddress);
+        expect((transaction.restrictionAdditions[0] as Address).plain()).to.be.equal('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC');
+        expect(transaction.restrictionDeletions.length).to.be.equal(0);
     });
 
     it('should create AccountRestrictionMosaicTransaction', () => {
         const mosaicId = new MosaicId([2262289484, 3405110546]);
-        const mosaicRestrictionFilter = AccountRestrictionModification.createForMosaic(
-            AccountRestrictionModificationAction.Add,
-            mosaicId,
-        );
         const mosaicRestrictionTransaction = AccountRestrictionTransaction.createMosaicRestrictionModificationTransaction(
             Deadline.create(),
-            AccountRestrictionType.AllowMosaic,
-            [mosaicRestrictionFilter],
+            AccountRestrictionFlags.AllowMosaic,
+            [mosaicId],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
         const signedTransaction = mosaicRestrictionTransaction.signWith(account, generationHash);
 
         const transaction = TransactionMapping
-            .createFromPayload(signedTransaction.payload) as AccountAddressRestrictionTransaction;
-        expect(transaction.restrictionType).to.be.equal(AccountRestrictionType.AllowMosaic);
-        expect(transaction.modifications[0].value[0]).to.be.equal(2262289484);
-        expect(transaction.modifications[0].value[1]).to.be.equal(3405110546);
-        expect(transaction.modifications[0].modificationType).to.be.equal(AccountRestrictionModificationAction.Add);
+            .createFromPayload(signedTransaction.payload) as AccountMosaicRestrictionTransaction;
+        expect(transaction.restrictionFlags).to.be.equal(AccountRestrictionFlags.AllowMosaic);
+        expect((transaction.restrictionAdditions[0] as MosaicId).toHex()).to.be.equal(mosaicId.toHex());
+        expect(transaction.restrictionDeletions.length).to.be.equal(0);
     });
 
     it('should create AccountRestrictionOperationTransaction', () => {
         const operation = TransactionType.ADDRESS_ALIAS;
-        const operationRestrictionFilter = AccountRestrictionModification.createForOperation(
-            AccountRestrictionModificationAction.Add,
-            operation,
-        );
         const operationRestrictionTransaction = AccountRestrictionTransaction.createOperationRestrictionModificationTransaction(
             Deadline.create(),
-            AccountRestrictionType.AllowIncomingTransactionType,
-            [operationRestrictionFilter],
+            AccountRestrictionFlags.AllowIncomingTransactionType,
+            [operation],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
         const signedTransaction = operationRestrictionTransaction.signWith(account, generationHash);
 
         const transaction = TransactionMapping
-            .createFromPayload(signedTransaction.payload) as AccountAddressRestrictionTransaction;
-        expect(transaction.restrictionType).to.be.equal(AccountRestrictionType.AllowIncomingTransactionType);
-        expect(transaction.modifications[0].value).to.be.equal(operation);
-        expect(transaction.modifications[0].modificationType).to.be.equal(AccountRestrictionModificationAction.Add);
+            .createFromPayload(signedTransaction.payload) as AccountOperationRestrictionTransaction;
+        expect(transaction.restrictionFlags).to.be.equal(AccountRestrictionFlags.AllowIncomingTransactionType);
+        expect(transaction.restrictionAdditions[0]).to.be.equal(operation);
+        expect(transaction.restrictionDeletions.length).to.be.equal(0);
     });
 
     it('should create AddressAliasTransaction', () => {
@@ -311,7 +307,7 @@ describe('TransactionMapping - createFromPayload', () => {
 
         const transaction = TransactionMapping.createFromPayload(signedTransaction.payload) as MosaicSupplyChangeTransaction;
 
-        expect(transaction.direction).to.be.equal(MosaicSupplyChangeAction.Increase);
+        expect(transaction.action).to.be.equal(MosaicSupplyChangeAction.Increase);
         expect(transaction.delta.lower).to.be.equal(10);
         expect(transaction.delta.higher).to.be.equal(0);
         expect(transaction.mosaicId.id.lower).to.be.equal(2262289484);
@@ -361,7 +357,7 @@ describe('TransactionMapping - createFromPayload', () => {
         expect(transaction.duration.equals(UInt64.fromUint(100))).to.be.equal(true);
         expect(transaction.hashType).to.be.equal(0);
         expect(transaction.secret).to.be.equal('9B3155B37159DA50AA52D5967C509B410F5A36A3B1E31ECB5AC76675D79B4A5E');
-        expect(transaction.recipientAddress.plain()).to.be.equal(recipientAddress.plain());
+        expect((transaction.recipientAddress as Address).plain()).to.be.equal(recipientAddress.plain());
 
     });
 
@@ -382,7 +378,7 @@ describe('TransactionMapping - createFromPayload', () => {
         expect(secretProofTransaction.hashType).to.be.equal(0);
         expect(secretProofTransaction.secret).to.be.equal('9b3155b37159da50aa52d5967c509b410f5a36a3b1e31ecb5ac76675d79b4a5e' );
         expect(secretProofTransaction.proof).to.be.equal(proof);
-        expect(secretProofTransaction.recipientAddress.plain()).to.be.equal(account.address.plain());
+        expect((secretProofTransaction.recipientAddress as Address).plain()).to.be.equal(account.address.plain());
 
     });
 
@@ -391,11 +387,9 @@ describe('TransactionMapping - createFromPayload', () => {
             Deadline.create(),
             2,
             1,
-            [new MultisigCosignatoryModification(
-                CosignatoryModificationAction.Add,
-                PublicAccount.createFromPublicKey('B0F93CBEE49EEB9953C6F3985B15A4F238E205584D8F924C621CBE4D7AC6EC24',
-                    NetworkType.MIJIN_TEST),
-            )],
+            [PublicAccount.createFromPublicKey('B0F93CBEE49EEB9953C6F3985B15A4F238E205584D8F924C621CBE4D7AC6EC24',
+            NetworkType.MIJIN_TEST)],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
@@ -407,10 +401,10 @@ describe('TransactionMapping - createFromPayload', () => {
             .to.be.equal(2);
         expect(transaction.minRemovalDelta)
             .to.be.equal(1);
-        expect(transaction.modifications[0].modificiationType)
-            .to.be.equal(CosignatoryModificationAction.Add);
-        expect(transaction.modifications[0].cosignatoryPublicAccount.publicKey)
+        expect(transaction.publicKeyAdditions[0].publicKey)
             .to.be.equal('B0F93CBEE49EEB9953C6F3985B15A4F238E205584D8F924C621CBE4D7AC6EC24');
+        expect(transaction.publicKeyDeletions.length)
+            .to.be.equal(0);
     });
 
     it('should create AggregatedTransaction - Complete', () => {
@@ -574,7 +568,31 @@ describe('TransactionMapping - createFromPayload', () => {
         expect(transaction.type).to.be.equal(TransactionType.MOSAIC_ADDRESS_RESTRICTION);
         expect(transaction.mosaicId.toHex()).to.be.equal(new MosaicId(UInt64.fromUint(1).toDTO()).toHex());
         expect(transaction.restrictionKey.toHex()).to.be.equal(UInt64.fromUint(4444).toHex());
-        expect(transaction.targetAddress.plain()).to.be.equal(account.address.plain());
+        expect(transaction.targetAddressToString()).to.be.equal(account.address.plain());
+        expect(transaction.previousRestrictionValue.toHex()).to.be.equal(UInt64.fromUint(0).toHex());
+        expect(transaction.newRestrictionValue.toHex()).to.be.equal(UInt64.fromUint(0).toHex());
+    });
+
+    it('should create MosaicAddressRestrictionTransaction - MosaicAlias', () => {
+        const mosaicAddressRestrictionTransaction = MosaicAddressRestrictionTransaction.create(
+            Deadline.create(),
+            new NamespaceId('test'),
+            UInt64.fromUint(4444),
+            account.address,
+            UInt64.fromUint(0),
+            NetworkType.MIJIN_TEST,
+            UInt64.fromUint(0),
+        );
+
+        const signedTx = mosaicAddressRestrictionTransaction.signWith(account, generationHash);
+
+        const transaction = TransactionMapping.createFromPayload(signedTx.payload) as MosaicAddressRestrictionTransaction;
+
+        expect(transaction.type).to.be.equal(TransactionType.MOSAIC_ADDRESS_RESTRICTION);
+        expect(transaction.mosaicId.toHex()).to.be.equal(new NamespaceId('test').toHex());
+        expect(transaction.mosaicId instanceof NamespaceId).to.be.true;
+        expect(transaction.restrictionKey.toHex()).to.be.equal(UInt64.fromUint(4444).toHex());
+        expect(transaction.targetAddressToString()).to.be.equal(account.address.plain());
         expect(transaction.previousRestrictionValue.toHex()).to.be.equal(UInt64.fromUint(0).toHex());
         expect(transaction.newRestrictionValue.toHex()).to.be.equal(UInt64.fromUint(0).toHex());
     });
@@ -720,35 +738,29 @@ describe('TransactionMapping - createFromDTO (Transaction.toJSON() feed)', () =>
 
     it('should create AccountRestrictionAddressTransaction', () => {
         const address = Address.createFromRawAddress('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC');
-        const addressRestrictionFilter = AccountRestrictionModification.createForAddress(
-            AccountRestrictionModificationAction.Add,
-            address,
-        );
         const addressRestrictionTransaction = AccountRestrictionTransaction.createAddressRestrictionModificationTransaction(
             Deadline.create(),
-            AccountRestrictionType.AllowIncomingAddress,
-            [addressRestrictionFilter],
+            AccountRestrictionFlags.AllowIncomingAddress,
+            [address],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
         const transaction =
             TransactionMapping.createFromDTO(addressRestrictionTransaction.toJSON()) as AccountAddressRestrictionTransaction;
 
-        expect(transaction.modifications[0].value).to.be.equal('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC');
-        expect(transaction.restrictionType).to.be.equal(AccountRestrictionType.AllowIncomingAddress);
-        expect(transaction.modifications[0].modificationType).to.be.equal(AccountRestrictionModificationAction.Add);
+        expect((transaction.restrictionAdditions[0] as Address).plain()).to.be.equal('SBILTA367K2LX2FEXG5TFWAS7GEFYAGY7QLFBYKC');
+        expect(transaction.restrictionFlags).to.be.equal(AccountRestrictionFlags.AllowIncomingAddress);
+        expect(transaction.restrictionDeletions.length).to.be.equal(0);
     });
 
     it('should create AccountRestrictionMosaicTransaction', () => {
         const mosaicId = new MosaicId([2262289484, 3405110546]);
-        const mosaicRestrictionFilter = AccountRestrictionModification.createForMosaic(
-            AccountRestrictionModificationAction.Add,
-            mosaicId,
-        );
         const mosaicRestrictionTransaction = AccountRestrictionTransaction.createMosaicRestrictionModificationTransaction(
             Deadline.create(),
-            AccountRestrictionType.AllowMosaic,
-            [mosaicRestrictionFilter],
+            AccountRestrictionFlags.AllowMosaic,
+            [mosaicId],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
@@ -756,20 +768,17 @@ describe('TransactionMapping - createFromDTO (Transaction.toJSON() feed)', () =>
             TransactionMapping.createFromDTO(mosaicRestrictionTransaction.toJSON()) as AccountMosaicRestrictionTransaction;
 
         expect(transaction.type).to.be.equal(TransactionType.ACCOUNT_RESTRICTION_MOSAIC);
-        expect(transaction.restrictionType).to.be.equal(AccountRestrictionType.AllowMosaic);
-        expect(transaction.modifications.length).to.be.equal(1);
+        expect(transaction.restrictionFlags).to.be.equal(AccountRestrictionFlags.AllowMosaic);
+        expect(transaction.restrictionAdditions.length).to.be.equal(1);
     });
 
-    it('should create AccountRestrictionMosaicTransaction', () => {
+    it('should create AccountRestrictionOperationTransaction', () => {
         const operation = TransactionType.ADDRESS_ALIAS;
-        const operationRestrictionFilter = AccountRestrictionModification.createForOperation(
-            AccountRestrictionModificationAction.Add,
-            operation,
-        );
         const operationRestrictionTransaction = AccountRestrictionTransaction.createOperationRestrictionModificationTransaction(
             Deadline.create(),
-            AccountRestrictionType.AllowIncomingTransactionType,
-            [operationRestrictionFilter],
+            AccountRestrictionFlags.AllowIncomingTransactionType,
+            [operation],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
@@ -777,8 +786,8 @@ describe('TransactionMapping - createFromDTO (Transaction.toJSON() feed)', () =>
             TransactionMapping.createFromDTO(operationRestrictionTransaction.toJSON()) as AccountMosaicRestrictionTransaction;
 
         expect(transaction.type).to.be.equal(TransactionType.ACCOUNT_RESTRICTION_OPERATION);
-        expect(transaction.restrictionType).to.be.equal(AccountRestrictionType.AllowIncomingTransactionType);
-        expect(transaction.modifications.length).to.be.equal(1);
+        expect(transaction.restrictionFlags).to.be.equal(AccountRestrictionFlags.AllowIncomingTransactionType);
+        expect(transaction.restrictionAdditions.length).to.be.equal(1);
     });
 
     it('should create AddressAliasTransaction', () => {
@@ -853,7 +862,7 @@ describe('TransactionMapping - createFromDTO (Transaction.toJSON() feed)', () =>
             TransactionMapping.createFromDTO(mosaicSupplyChangeTransaction.toJSON()) as MosaicSupplyChangeTransaction;
 
         expect(transaction.type).to.be.equal(TransactionType.MOSAIC_SUPPLY_CHANGE);
-        expect(transaction.direction).to.be.equal(MosaicSupplyChangeAction.Increase);
+        expect(transaction.action).to.be.equal(MosaicSupplyChangeAction.Increase);
 
     });
 
@@ -875,6 +884,51 @@ describe('TransactionMapping - createFromDTO (Transaction.toJSON() feed)', () =>
 
         expect(transaction.type).to.be.equal(TransactionType.SECRET_LOCK);
         expect(transaction.hashType).to.be.equal(HashType.Op_Sha3_256);
+
+    });
+
+    it('should create SecretLockTransaction - Address alias', () => {
+        const proof = 'B778A39A3663719DFC5E48C9D78431B1E45C2AF9DF538782BF199C189DABEAC7';
+        const recipientAddress = new NamespaceId('test');
+        const secretLockTransaction = SecretLockTransaction.create(
+            Deadline.create(),
+            NetworkCurrencyMosaic.createAbsolute(10),
+            UInt64.fromUint(100),
+            HashType.Op_Sha3_256,
+            sha3_256.create().update(Convert.hexToUint8(proof)).hex(),
+            recipientAddress,
+            NetworkType.MIJIN_TEST,
+        );
+
+        const transaction =
+            TransactionMapping.createFromDTO(secretLockTransaction.toJSON()) as SecretLockTransaction;
+
+        expect(transaction.type).to.be.equal(TransactionType.SECRET_LOCK);
+        expect(transaction.hashType).to.be.equal(HashType.Op_Sha3_256);
+        expect((transaction.recipientAddress as NamespaceId).id.toHex()).to.be.equal(recipientAddress.toHex());
+
+    });
+
+    it('should create SecretLockTransaction - resolved Mosaic', () => {
+        const proof = 'B778A39A3663719DFC5E48C9D78431B1E45C2AF9DF538782BF199C189DABEAC7';
+        const recipientAddress = Address.createFromRawAddress('SDBDG4IT43MPCW2W4CBBCSJJT42AYALQN7A4VVWL');
+        const mosaicId = new NamespaceId('test');
+        const secretLockTransaction = SecretLockTransaction.create(
+            Deadline.create(),
+            new Mosaic(new MosaicId([1, 1]), UInt64.fromUint(10)),
+            UInt64.fromUint(100),
+            HashType.Op_Sha3_256,
+            sha3_256.create().update(Convert.hexToUint8(proof)).hex(),
+            recipientAddress,
+            NetworkType.MIJIN_TEST,
+        );
+
+        const transaction =
+            TransactionMapping.createFromDTO(secretLockTransaction.toJSON()) as SecretLockTransaction;
+
+        expect(transaction.type).to.be.equal(TransactionType.SECRET_LOCK);
+        expect(transaction.hashType).to.be.equal(HashType.Op_Sha3_256);
+        expect(transaction.mosaic.id.toHex()).to.be.equal((new MosaicId([1, 1])).toHex());
 
     });
 
@@ -900,16 +954,37 @@ describe('TransactionMapping - createFromDTO (Transaction.toJSON() feed)', () =>
 
     });
 
+    it('should create SecretProofTransaction - Address alias', () => {
+        const proof = 'B778A39A3663719DFC5E48C9D78431B1E45C2AF9DF538782BF199C189DABEAC7';
+        const recipientAddress = new NamespaceId('test');
+        const secretProofTransaction = SecretProofTransaction.create(
+            Deadline.create(),
+            HashType.Op_Sha3_256,
+            sha3_256.create().update(Convert.hexToUint8(proof)).hex(),
+            recipientAddress,
+            proof,
+            NetworkType.MIJIN_TEST,
+        );
+
+        const transaction =
+            TransactionMapping.createFromDTO(secretProofTransaction.toJSON()) as SecretProofTransaction;
+
+        expect(transaction.type).to.be.equal(TransactionType.SECRET_PROOF);
+        expect(transaction.hashType).to.be.equal(HashType.Op_Sha3_256);
+        expect(transaction.secret).to.be.equal(sha3_256.create().update(Convert.hexToUint8(proof)).hex());
+        expect(transaction.proof).to.be.equal(proof);
+        expect((transaction.recipientAddress as NamespaceId).id.toHex()).to.be.equal(recipientAddress.toHex());
+
+    });
+
     it('should create ModifyMultiSigTransaction', () => {
         const modifyMultisigAccountTransaction = MultisigAccountModificationTransaction.create(
             Deadline.create(),
             2,
             1,
-            [new MultisigCosignatoryModification(
-                CosignatoryModificationAction.Add,
-                PublicAccount.createFromPublicKey('B0F93CBEE49EEB9953C6F3985B15A4F238E205584D8F924C621CBE4D7AC6EC24',
-                    NetworkType.MIJIN_TEST),
-            )],
+            [PublicAccount.createFromPublicKey('B0F93CBEE49EEB9953C6F3985B15A4F238E205584D8F924C621CBE4D7AC6EC24',
+            NetworkType.MIJIN_TEST)],
+            [],
             NetworkType.MIJIN_TEST,
         );
 
@@ -1056,7 +1131,7 @@ describe('TransactionMapping - createFromDTO (Transaction.toJSON() feed)', () =>
         expect(transaction.type).to.be.equal(TransactionType.MOSAIC_ADDRESS_RESTRICTION);
         expect(transaction.mosaicId.id.compact()).to.be.equal(1);
         expect(transaction.restrictionKey.toHex()).to.be.equal(UInt64.fromUint(4444).toHex());
-        expect(transaction.targetAddress.plain()).to.be.equal(account.address.plain());
+        expect(transaction.targetAddressToString()).to.be.equal(account.address.plain());
         expect(transaction.previousRestrictionValue.toHex()).to.be.equal(UInt64.fromUint(0).toHex());
         expect(transaction.newRestrictionValue.toHex()).to.be.equal(UInt64.fromUint(0).toHex());
     });
